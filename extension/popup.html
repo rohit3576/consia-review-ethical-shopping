@@ -1,40 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Consia</title>
-<link rel="stylesheet" href="popup.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consia</title>
+  <link rel="stylesheet" href="popup.css" />
 </head>
+
 <body>
-<div class="container">
-<h1>Consia</h1>
-<p class="subtitle">Should you buy this product?</p>
+  <div class="container">
+    <h1>Consia</h1>
+    <p class="subtitle">Should you buy this product?</p>
 
+    <button id="analyzeBtn">Analyze This Page</button>
 
-<button id="analyzeBtn">Analyze This Page</button>
+    <div id="status" class="status">Waiting…</div>
 
+    <div id="result" class="result hidden">
+      <h2 id="recText"></h2>
+      <p><b>Title:</b> <span id="title"></span></p>
+      <p><b>Price:</b> ₹<span id="price"></span></p>
 
-<div id="status" class="status">Waiting…</div>
+      <div class="metrics">
+        <p>✅ Positive: <span id="pos"></span>%</p>
+        <p>❌ Negative: <span id="neg"></span>%</p>
+        <p>😐 Neutral: <span id="neu"></span>%</p>
+        <p>🕵 Fake Reviews: <span id="fake"></span>%</p>
+        <p>💰 Value Score: <span id="value"></span>/100</p>
+      </div>
+    </div>
+  </div>
 
-
-<div id="result" class="result hidden">
-<h2 id="recText"></h2>
-<p><b>Title:</b> <span id="title"></span></p>
-<p><b>Price:</b> ₹<span id="price"></span></p>
-
-
-<div class="metrics">
-<p>✅ Positive: <span id="pos"></span>%</p>
-<p>❌ Negative: <span id="neg"></span>%</p>
-<p>😐 Neutral: <span id="neu"></span>%</p>
-<p>🕵 Fake Reviews: <span id="fake"></span>%</p>
-<p>💰 Value Score: <span id="value"></span>/100</p>
-</div>
-</div>
-</div>
-
-
-<script src="popup.js"></script>
+  <script src="popup.js"></script>
 </body>
 </html>
