@@ -1,63 +1,142 @@
-// content.js - UPDATED VERSION WITH IMPROVED FLIPKART SELECTORS
+// content.js - FIXED VERSION FOR FLIPKART REVIEW PAGE
 console.log("✅ Consia content script loaded on:", window.location.href);
 
 function cleanText(t) {
   return (t || "")
     .replace(/\n+/g, " ")
     .replace(/\s+/g, " ")
+    .replace(/READ MORE/g, "")
     .trim();
+}
+
+// Click all "Read More" buttons to expand reviews
+function expandAllReadMore() {
+  const readMoreSelectors = [
+    "span._1BWGvX",
+    "span[class*='read-more']",
+    "button[class*='read']",
+    "div._3Uc6Vt",
+    ".T9pNhm" // "Read full review" button
+  ];
+  
+  let clicked = 0;
+  readMoreSelectors.forEach(selector => {
+    const buttons = document.querySelectorAll(selector);
+    buttons.forEach(button => {
+      try {
+        button.click();
+        clicked++;
+      } catch(e) {
+        // Ignore errors
+      }
+    });
+  });
+  
+  if (clicked > 0) {
+    console.log(`✅ Clicked ${clicked} "Read More" buttons`);
+  }
+  
+  return clicked;
 }
 
 function extractFlipkartReviewPage() {
   console.log("🛒 Extracting from Flipkart REVIEW page");
   
-  const title =
-    document.querySelector("h1 span")?.innerText?.trim() ||
-    document.querySelector("h1")?.innerText?.trim() ||
-    document.title;
+  // Step 1: Expand all reviews first
+  expandAllReadMore();
+  
+  // Wait a bit for expansion
+  setTimeout(() => {
+    // This will be called after timeout
+  }, 500);
+  
+  const title = document.querySelector("h1")?.innerText?.trim() || 
+                document.querySelector("span.B_NuCI")?.innerText?.trim() ||
+                document.title;
 
   const price = 0;
 
-  // ✅ UPDATED: Better Flipkart review selectors (most common ones)
-  const reviewSelectors = [
-    "div._6K-7Co",      // Main review text
-    "div.t-ZTKy",       // Review description
-    "div._27M-vq",      // Review content wrapper
-    "div.ZmyHeo",       // Another review wrapper
-    "div._11JPr",       // Yet another wrapper
-    "div[class*='review']",  // Any class with review
-    "div[data-id*='review']", // Data attribute
-    ".qwjRop div",      // Common Flipkart class
-    ".row .col-12"      // Grid layout
-  ];
-
+  // ✅ MAIN FIX: Target the review BODY text specifically
+  // Flipkart stores actual review text in nested spans/divs
+  const reviewContainers = document.querySelectorAll("div._27M-vq, div.row, div._1PBCrt");
+  
+  console.log(`🔍 Found ${reviewContainers.length} review containers`);
+  
   let allReviews = [];
   
-  // Try each selector
-  for (const selector of reviewSelectors) {
-    const elements = document.querySelectorAll(selector);
-    console.log(`🔍 Selector "${selector}": Found ${elements.length} elements`);
+  reviewContainers.forEach((container, index) => {
+    // Look for the review text inside each container
+    const reviewTextElements = container.querySelectorAll("div.t-ZTKy, div._6K-7Co, div.ZmyHeo, span[class*='review']");
     
-    if (elements.length > 0) {
-      elements.forEach((el, index) => {
-        const text = cleanText(el.innerText);
-        if (text && text.length > 30 && 
-            !text.toLowerCase().includes("read more") &&
-            !text.toLowerCase().includes("helpful") &&
-            !text.includes("★")) {
-          console.log(`📝 Review ${index}: ${text.substring(0, 80)}...`);
-          allReviews.push(text);
+    reviewTextElements.forEach(el => {
+      const text = cleanText(el.innerText || el.textContent);
+      
+      // Filter criteria for real reviews
+      if (text && 
+          text.length > 20 && 
+          text.length < 1000 &&
+          !text.toLowerCase().includes("helpful") &&
+          !text.includes("★") &&
+          !text.includes("Verified Purchase") &&
+          !text.includes("READ LESS") &&
+          !text.match(/^\d+\s*(year|month|day)s? ago$/i)) {
+        
+        console.log(`📝 Review ${allReviews.length + 1}: ${text.substring(0, 80)}...`);
+        allReviews.push(text);
+      }
+    });
+    
+    // Also try to get text directly from paragraphs in the container
+    if (reviewTextElements.length === 0) {
+      const paragraphs = container.querySelectorAll("p, div");
+      paragraphs.forEach(p => {
+        const text = cleanText(p.innerText);
+        if (text && text.length > 30 && text.length < 500) {
+          // Check if it looks like a review
+          const words = text.split(' ');
+          if (words.length > 5 && !text.includes("₹")) {
+            allReviews.push(text);
+          }
         }
       });
-      
-      if (allReviews.length >= 10) break; // Got enough reviews
     }
+  });
+  
+  // ✅ ALTERNATIVE METHOD: Try getting ALL text that looks like reviews
+  if (allReviews.length === 0) {
+    console.log("🔄 Trying alternative extraction method...");
+    
+    // Get all text nodes on the page that might be reviews
+    const allTextElements = document.querySelectorAll("div, p, span");
+    const potentialReviews = [];
+    
+    allTextElements.forEach(el => {
+      const text = cleanText(el.innerText);
+      // Check if text looks like a review (not too short, not too long)
+      if (text && 
+          text.length > 30 && 
+          text.length < 800 &&
+          text.includes(" ") && // Has multiple words
+          !text.includes("★") &&
+          !text.includes("Helpful") &&
+          !text.match(/^[0-9\s]*$/) && // Not just numbers
+          !text.includes("Flipkart")) {
+        
+        potentialReviews.push(text);
+      }
+    });
+    
+    // Remove duplicates and take top 30
+    allReviews = [...new Set(potentialReviews)].slice(0, 30);
   }
   
-  // ✅ Remove duplicates and limit
+  // Remove duplicates and limit
   let reviews = [...new Set(allReviews)].slice(0, 30);
   
-  console.log(`✅ Extracted ${reviews.length} reviews from Flipkart review page`);
+  console.log(`✅ Extracted ${reviews.length} reviews`);
+  if (reviews.length > 0) {
+    console.log("Sample review:", reviews[0].substring(0, 100));
+  }
   
   return { title, price, reviews };
 }
@@ -69,20 +148,25 @@ function extractFlipkartProductPage() {
   const priceText = document.querySelector("div._30jeq3")?.innerText || "";
   const price = Number(priceText.replace(/[^0-9.]/g, "")) || 0;
 
-  // ✅ UPDATED: Better selectors for product page reviews
-  const reviewElements = document.querySelectorAll("div.t-ZTKy, div.ZmyHeo, div._6K-7Co");
+  // Expand reviews on product page too
+  expandAllReadMore();
+  
+  const reviewElements = document.querySelectorAll("div.t-ZTKy, div.ZmyHeo, div._6K-7Co, div._27M-vq");
   
   console.log(`🔍 Found ${reviewElements.length} review elements`);
   
   const reviews = Array.from(reviewElements)
     .map((el) => cleanText(el.innerText))
-    .filter((t) => t.length > 30 && !t.toLowerCase().includes("read more"));
+    .filter((t) => t.length > 30 && 
+                   !t.toLowerCase().includes("read more") &&
+                   !t.includes("★"));
 
-  console.log(`✅ Extracted ${reviews.length} reviews from Flipkart product page`);
+  console.log(`✅ Extracted ${reviews.length} reviews`);
   
   return { title, price, reviews };
 }
 
+// [Keep Amazon and Generic functions same as before]
 function extractAmazon() {
   const title = document.querySelector("#productTitle")?.innerText?.trim() || "";
   const priceText =
@@ -138,23 +222,30 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       payload = extractGeneric();
     }
 
-    console.log("✅ Consia extracted payload:", {
-      title: payload.title,
+    console.log("✅ Consia extracted:", {
+      title: payload.title.substring(0, 50) + "...",
       price: payload.price,
       reviewCount: payload.reviews.length
     });
     
     if (payload.reviews.length === 0) {
-      console.warn("⚠️ No reviews extracted! Debugging page structure...");
+      console.warn("⚠️ NO REVIEWS EXTRACTED! Running debug...");
       
-      // Debug: Log all div elements with classes
-      const allDivs = document.querySelectorAll('div[class]');
-      console.log(`📊 Total div elements with classes: ${allDivs.length}`);
+      // Quick debug - show structure
+      const containers = document.querySelectorAll('div[class]');
+      console.log(`Total div elements: ${containers.length}`);
       
-      // Show sample of div classes
-      Array.from(allDivs).slice(0, 20).forEach((div, i) => {
-        console.log(`Div ${i}: class="${div.className.substring(0, 50)}"`);
-      });
+      // Look for any text that might be reviews
+      const allText = document.body.innerText;
+      const sentences = allText.split(/[.!?]+/).filter(s => s.length > 30);
+      console.log(`Found ${sentences.length} potential review sentences`);
+      
+      if (sentences.length > 0) {
+        console.log("Sample sentences:", sentences.slice(0, 3));
+        // Use some of these as fallback
+        payload.reviews = sentences.slice(0, 10)
+          .filter(s => !s.includes("★") && !s.includes("Helpful"));
+      }
     }
 
     sendResponse(payload);
